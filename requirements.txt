@@ -1,0 +1,10 @@
+scikit-learn==1.6.1
+pandas==2.2.3
+joblib==1.5.3
+pythainlp==5.3.7
+flask
+flask-cors
+gspread
+oauth2client
+gunicorn
+
