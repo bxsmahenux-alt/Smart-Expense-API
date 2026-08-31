@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Expense Tracker (AI)</title>
+    <!-- ใช้ฟอนต์ Google Fonts เพื่อความสวยงาม -->
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        /* --- ส่วน CSS ตกแต่งความสวยงาม --- */
+        body {
+            font-family: 'Kanit', sans-serif;
+            background-color: #f4f7f6;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+        h2 { color: #2c3e50; margin-bottom: 5px; }
+        p.subtitle { color: #7f8c8d; font-size: 14px; margin-bottom: 20px; }
+        
+        input[type="text"] {
+            width: 90%;
+            padding: 12px;
+            border: 2px solid #bdc3c7;
+            border-radius: 8px;
+            font-size: 16px;
+            font-family: 'Kanit', sans-serif;
+            margin-bottom: 15px;
+            transition: border-color 0.3s;
+        }
+        input[type="text"]:focus {
+            border-color: #3498db;
+            outline: none;
+        }
+
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-family: 'Kanit', sans-serif;
+            cursor: pointer;
+            width: 100%;
+            transition: background-color 0.3s;
+        }
+        button:hover { background-color: #2980b9; }
+        button:disabled { background-color: #95a5a6; cursor: not-allowed; }
+
+        /* ส่วนแสดงผลลัพธ์ (เริ่มแรกให้ซ่อนไว้) */
+        #resultCard {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            background-color: #ecf0f1;
+            display: none; /* ซ่อนไว้ก่อน */
+            text-align: left;
+        }
+        .tag {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 14px;
+            font-weight: bold;
+            color: white;
+            background-color: #e67e22; /* สีส้ม */
+            margin-top: 5px;
+        }
+
+        /* Loading Spinner แบบง่ายๆ */
+        .spinner {
+            display: none; /* ซ่อนไว้ก่อน */
+            margin: 10px auto;
+            border: 4px solid rgba(0,0,0,0.1);
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border-left-color: #3498db;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>💰 AI Expense Tracker</h2>
+        <p class="subtitle">พิมพ์รายจ่าย แล้วให้ AI จัดการลงบัญชี</p>
+
+        <!-- ช่องกรอกข้อมูล -->
+        <input type="text" id="expenseInput" placeholder="เช่น ซื้อข้าวมันไก่ป้าศรี 45" onkeypress="handleEnter(event)">
+        
+        <!-- ปุ่มกดบันทึก -->
+        <button id="saveButton" onclick="sendData()">บันทึกข้อมูล</button>
+        
+        <!-- ตัวหมุน Loading -->
+        <div class="spinner" id="loadingSpinner"></div>
+
+        <!-- การ์ดแสดงผลลัพธ์ -->
+        <div id="resultCard">
+            <div style="color: #27ae60; font-weight: bold; margin-bottom: 5px;" id="statusText"></div>
+            <div>ยอดเงินที่ AI ดึงได้: <strong id="amountText" style="color:#c0392b;"></strong> บาท</div>
+            <div>หมวดหมู่: <span class="tag" id="categoryText"></span></div>
+        </div>
+    </div>
+
+    <!-- --- ส่วน JavaScript สั่งการระบบ --- -->
+    <script>
+        // ฟังก์ชันให้กด Enter แทนการคลิกเมาส์ได้
+        function handleEnter(event) {
+            if (event.key === "Enter") {
+                sendData();
+            }
+        }
+
+        function sendData() {
+            const inputField = document.getElementById("expenseInput");
+            const saveBtn = document.getElementById("saveButton");
+            const spinner = document.getElementById("loadingSpinner");
+            const resultCard = document.getElementById("resultCard");
+
+            const textValue = inputField.value.trim();
+
+            // เช็คว่าพิมพ์ข้อมูลหรือยัง
+            if (textValue === "") {
+                alert("กรุณาพิมพ์รายการใช้จ่ายก่อนครับ!");
+                return;
+            }
+
+            // 1. จัดการ UX (กำลังโหลด)
+            saveBtn.disabled = true; // ล็อกปุ่ม
+            saveBtn.innerText = "กำลังให้ AI คิด..."; // เปลี่ยนข้อความปุ่ม
+            spinner.style.display = "block"; // โชว์ตัวหมุน
+            resultCard.style.display = "none"; // ซ่อนผลลัพธ์เก่า
+
+            // ⚠️ จุดสำคัญ: นักเรียนต้องเอาลิงก์ ngrok จาก Colab มาวางตรงนี้ ⚠️
+            const API_URL = "https://smart-expense-api-w0bz.onrender.com/add_expense"; 
+
+            // 2. ส่งข้อมูลไปหา Python (Colab) ด้วยวิธี POST
+            fetch(API_URL, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ text: textValue })
+            })
+            .then(response => response.json()) // รอรับคำตอบ
+            .then(data => {
+                // 3. เมื่อได้รับคำตอบกลับมา ให้แสดงผลลัพธ์
+                document.getElementById("statusText").innerText = "✅ " + data.sheet_status;
+                document.getElementById("amountText").innerText = data.amount;
+                document.getElementById("categoryText").innerText = data.category;
+                
+                resultCard.style.display = "block"; // โชว์การ์ดผลลัพธ์
+                inputField.value = ""; // ล้างช่องข้อความให้พร้อมพิมพ์ใหม่
+            })
+            .catch(error => {
+                console.error("Error:", error);
+                alert("เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์ กรุณาเช็กลิงก์ ngrok");
+            })
+            .finally(() => {
+                // 4. คืนค่า UX กลับสู่สภาพเดิม ไม่ว่าจะสำเร็จหรือล้มเหลว
+                saveBtn.disabled = false;
+                saveBtn.innerText = "บันทึกข้อมูล";
+                spinner.style.display = "none";
+            });
+        }
+    </script>
+</body>
+</html>
